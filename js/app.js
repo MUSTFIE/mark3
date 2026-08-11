@@ -61,6 +61,11 @@ function init() {
 
   $('#btn-add-account').addEventListener('click', openAddAccountModal);
   $('#btn-close-account-modal').addEventListener('click', closeAccountModal);
+  const btnCloseAccDetail = $('#btn-close-account-detail');
+  if (btnCloseAccDetail) btnCloseAccDetail.addEventListener('click', closeAccountDetailModal);
+  const accDetailOverlay = $('#account-detail-modal-overlay');
+  if (accDetailOverlay) accDetailOverlay.addEventListener('click', e => { if (e.target.id === 'account-detail-modal-overlay') closeAccountDetailModal(); });
+
   $('#btn-cancel-account').addEventListener('click', closeAccountModal);
   $('#account-form').addEventListener('submit', handleAccountSubmit);
   $('#account-type').addEventListener('change', onAccountTypeChange);
