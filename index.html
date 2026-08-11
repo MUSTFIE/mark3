@@ -360,6 +360,28 @@
  </div>
 
  <!-- 戶口 Modal -->
+ <!-- 戶口詳情 / 流水 -->
+ <div id="account-detail-modal-overlay" class="modal-overlay hidden">
+ <div class="modal modal-sheet">
+ <div class="modal-header">
+ <h3 id="account-detail-title">戶口詳情</h3>
+ <button type="button" id="btn-close-account-detail" class="btn-icon">×</button>
+ </div>
+ <div class="account-detail-body">
+ <div id="account-detail-summary" class="account-detail-summary"></div>
+ <div class="account-detail-actions">
+ <button type="button" id="btn-account-detail-edit" class="btn">✎ 編輯</button>
+ <button type="button" id="btn-account-detail-delete" class="btn danger-outline">刪除</button>
+ </div>
+ <div class="ledger-filter account-detail-filter">
+ <label>流水月份</label>
+ <select id="account-detail-month"></select>
+ </div>
+ <div id="account-detail-ledger" class="account-detail-ledger"></div>
+ </div>
+ </div>
+ </div>
+
  <div id="account-modal-overlay" class="modal-overlay hidden">
  <div class="modal">
  <div class="modal-header">
