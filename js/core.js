@@ -187,6 +187,31 @@ const $$ = s => document.querySelectorAll(s);
 function formatMoney(n) {
   return Number(n).toLocaleString('zh-TW', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
+
+/** 本地曆日期 YYYY-MM-DD（避免 toISOString 時區偏移） */
+function formatDateLocal(d) {
+  const x = d instanceof Date ? d : new Date(d);
+  if (Number.isNaN(x.getTime())) return '';
+  const y = x.getFullYear();
+  const m = String(x.getMonth() + 1).padStart(2, '0');
+  const day = String(x.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+/** 解析 YYYY-MM-DD 為本地 00:00 */
+function parseDateLocal(str) {
+  if (!str || !/^\d{4}-\d{2}-\d{2}$/.test(str)) return null;
+  const [y, m, d] = str.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setHours(0, 0, 0, 0);
+  return dt;
+}
+/** 今天本地日期字串 */
+function todayLocalStr() {
+  const t = new Date();
+  t.setHours(0, 0, 0, 0);
+  return formatDateLocal(t);
+}
+
 function money(currency, n) {
   return `${currency} ${formatMoney(n)}`;
 }
@@ -284,9 +309,13 @@ function isCollectReceivable(r) {
 function isInterest(r) {
   return !!(r && (r.isInterest || r.category === '利息收入'));
 }
+/** 戶口餘額調整：只影響戶口，不計入收入／支出 */
+function isAdjustment(r) {
+  return !!(r && (r.isAdjustment || r.category === '戶口調整'));
+}
 /** 不計入消費支出／收入的特殊紀錄 */
 function isNonOperating(r) {
-  return isTransfer(r) || isAdvance(r) || isCollectReceivable(r) || isInterest(r);
+  return isTransfer(r) || isAdvance(r) || isCollectReceivable(r) || isInterest(r) || isAdjustment(r);
 }
 function getReceivableAccount() {
   return accounts.find(a => a.type === '應收帳款') || null;
@@ -670,4 +699,3 @@ async function handleAuthClick() {
     }
   }
 }
-
