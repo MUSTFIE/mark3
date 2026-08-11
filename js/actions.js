@@ -1075,7 +1075,6 @@ function renderMpf() {
   (mpfData.accounts || []).forEach(a => { totalMop += mpfToMOP(a); });
   $('#mpf-total').textContent = money('MOP', totalMop);
 
-  // 當月漲跌折合 MOP
   const key = mpfMonthKey(mpfViewYear, mpfViewMonth);
   let changeMop = 0;
   (mpfData.accounts || []).forEach(acc => {
@@ -1101,80 +1100,126 @@ function renderMpf() {
   $('#no-mpf-accounts').style.display = 'none';
 
   mpfData.accounts.forEach(acc => {
-    const card = document.createElement('div');
-    const expanded = expandedMpfId === acc.id;
     const cur = mpfCurrency(acc);
-    card.className = 'mpf-card' + (expanded ? ' expanded' : '');
-    card.dataset.id = acc.id;
-    const snaps = [...(acc.snapshots || [])].sort((a, b) => b.month.localeCompare(a.month));
-    let listHtml = '';
-    if (expanded) {
-      if (!snaps.length) listHtml = '<div class="ledger-empty">尚無結餘紀錄</div>';
-      else {
-        listHtml = snaps.map((s, i) => {
-          const prev = snaps[i + 1];
-          let changeHtml = prev
-            ? (() => {
-                const diff = Number(s.balance) - Number(prev.balance);
-                const up = diff >= 0;
-                return `<span class="${up ? 'mpf-change-up' : 'mpf-change-down'}">${up ? '+' : ''}${money(cur, diff)}</span>`;
-              })()
-            : '<span class="account-meta">—</span>';
-          return `<div class="mpf-change-item">
-            <span>${s.month} · ${money(cur, s.balance)}${s.note ? ' · ' + escapeHtml(s.note) : ''}</span>
-            <span>${changeHtml}
-              <button type="button" class="edit-snap" data-acc="${acc.id}" data-id="${s.id}" style="margin-left:6px;font-size:0.7rem;padding:2px 8px;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;cursor:pointer">編輯</button>
-              <button type="button" class="del-snap" data-acc="${acc.id}" data-id="${s.id}" style="font-size:0.7rem;padding:2px 8px;border:1px solid #e5e7eb;border-radius:6px;background:#f9fafb;cursor:pointer;color:#dc2626">刪</button>
-            </span></div>`;
-        }).join('');
-      }
-    }
-    card.innerHTML = `
-      <div class="mpf-card-header mpf-card-toggle">
-        <div>
-          <div class="mpf-card-name">${escapeHtml(acc.name)} <span class="account-meta">${cur} ${expanded ? '▾' : '▸'}</span></div>
-          ${acc.note ? `<div class="account-meta">${escapeHtml(acc.note)}</div>` : ''}
-        </div>
-        <div class="mpf-card-balance">${money(cur, acc.balance)}</div>
+    const item = document.createElement('div');
+    item.className = 'account-item account-row mpf-row';
+    item.dataset.id = acc.id;
+    item.setAttribute('role', 'button');
+    item.tabIndex = 0;
+    item.innerHTML = `
+      <div class="account-row-main">
+        <div class="account-name">${escapeHtml(acc.name)}</div>
       </div>
-      <div class="account-actions" style="margin-bottom:8px">
-        <button type="button" class="add-snap" data-id="${acc.id}">＋ 紀錄結餘</button>
-        <button type="button" class="edit-acc" data-id="${acc.id}">編輯</button>
-        <button type="button" class="delete del-acc" data-id="${acc.id}">刪除</button>
-      </div>
-      ${expanded ? `<div class="mpf-changes">
-        <div class="mpf-changes-title">每月結餘（自動計算漲跌）</div>
-        ${listHtml}
-      </div>` : ''}`;
-    el.appendChild(card);
+      <div class="account-row-right">
+        <div class="account-row-amount">${money('MOP', mpfToMOP(acc))}</div>
+        <span class="account-row-chevron">›</span>
+      </div>`;
+    el.appendChild(item);
   });
 
-  el.querySelectorAll('.mpf-card-toggle').forEach(hdr => {
-    hdr.addEventListener('click', e => {
-      if (e.target.closest('button')) return;
-      const card = hdr.closest('.mpf-card');
-      const id = card?.dataset.id;
-      expandedMpfId = expandedMpfId === id ? null : id;
-      renderMpf();
+  el.querySelectorAll('.mpf-row').forEach(item => {
+    const open = () => openMpfDetailModal(item.dataset.id);
+    item.addEventListener('click', open);
+    item.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
     });
   });
-  el.querySelectorAll('.add-snap').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); openAddMpfSnapModal(btn.dataset.id); }));
-  el.querySelectorAll('.edit-acc').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); openEditMpfAccountModal(btn.dataset.id); }));
-  el.querySelectorAll('.del-acc').forEach(btn => btn.addEventListener('click', e => {
-    e.stopPropagation();
-    mpfData.accounts = mpfData.accounts.filter(a => a.id !== btn.dataset.id);
-    saveMpfLocal(); queueMpfFullSync(); if (currentPage === 'assets') renderAssets(); else renderMpf();
-  }));
-  el.querySelectorAll('.edit-snap').forEach(btn => btn.addEventListener('click', e => { e.stopPropagation(); openEditMpfSnapModal(btn.dataset.acc, btn.dataset.id); }));
-  el.querySelectorAll('.del-snap').forEach(btn => btn.addEventListener('click', e => {
-    e.stopPropagation();
-    const acc = mpfData.accounts.find(a => a.id === btn.dataset.acc);
-    if (!acc) return;
-    acc.snapshots = (acc.snapshots || []).filter(s => s.id !== btn.dataset.id);
-    const sorted = [...(acc.snapshots || [])].sort((a, b) => b.month.localeCompare(a.month));
-    if (sorted.length) acc.balance = Number(sorted[0].balance);
-    saveMpfLocal(); queueMpfFullSync(); if (currentPage === 'assets') renderAssets(); else renderMpf();
-  }));
+}
+
+function openMpfDetailModal(accountId) {
+  const acc = mpfData.accounts.find(x => x.id === accountId);
+  if (!acc) return;
+  expandedMpfId = accountId;
+  const overlay = $('#mpf-detail-modal-overlay');
+  if (!overlay) return;
+  const cur = mpfCurrency(acc);
+  $('#mpf-detail-title').textContent = acc.name;
+  $('#mpf-detail-summary').innerHTML = `
+    <div class="account-detail-total">${money('MOP', mpfToMOP(acc))}</div>
+    <div class="account-meta">原幣結餘：${money(cur, acc.balance)}</div>
+    ${acc.note ? `<div class="account-meta">${escapeHtml(acc.note)}</div>` : ''}`;
+
+  $('#btn-mpf-detail-snap').onclick = () => {
+    closeMpfDetailModal();
+    openAddMpfSnapModal(acc.id);
+  };
+  $('#btn-mpf-detail-edit').onclick = () => {
+    closeMpfDetailModal();
+    openEditMpfAccountModal(acc.id);
+  };
+  $('#btn-mpf-detail-delete').onclick = () => {
+    if (!confirm('確定刪除此強積金戶口？')) return;
+    mpfData.accounts = mpfData.accounts.filter(a => a.id !== acc.id);
+    saveMpfLocal();
+    queueMpfFullSync();
+    expandedMpfId = null;
+    closeMpfDetailModal();
+    toast('已刪除強積金戶口', 'ok');
+    if (currentPage === 'assets') renderAssets(); else renderMpf();
+  };
+
+  renderMpfDetailSnaps(acc.id);
+  overlay.classList.remove('hidden');
+}
+
+function closeMpfDetailModal() {
+  $('#mpf-detail-modal-overlay')?.classList.add('hidden');
+}
+
+function renderMpfDetailSnaps(accountId) {
+  const acc = mpfData.accounts.find(x => x.id === accountId);
+  const box = $('#mpf-detail-snaps');
+  if (!acc || !box) return;
+  const cur = mpfCurrency(acc);
+  const snaps = [...(acc.snapshots || [])].sort((a, b) => b.month.localeCompare(a.month));
+  if (!snaps.length) {
+    box.innerHTML = '<div class="ledger-empty">尚無結餘紀錄</div>';
+    return;
+  }
+  box.innerHTML = snaps.map((s, i) => {
+    const prev = snaps[i + 1];
+    let changeHtml = prev
+      ? (() => {
+          const diff = Number(s.balance) - Number(prev.balance);
+          const up = diff >= 0;
+          return `<span class="${up ? 'mpf-change-up' : 'mpf-change-down'}">${up ? '+' : ''}${money(cur, diff)}</span>`;
+        })()
+      : '<span class="account-meta">—</span>';
+    return `<div class="ledger-item">
+      <span class="ledger-item-left">${s.month}<br><span class="account-meta">${money(cur, s.balance)}${s.note ? ' · ' + escapeHtml(s.note) : ''}</span></span>
+      <span class="ledger-item-right">
+        ${changeHtml}
+        <span class="record-actions">
+          <button type="button" class="edit-snap icon-btn" data-acc="${acc.id}" data-id="${s.id}" title="編輯">✎</button>
+          <button type="button" class="del-snap icon-btn" data-acc="${acc.id}" data-id="${s.id}" title="刪除">✕</button>
+        </span>
+      </span>
+    </div>`;
+  }).join('');
+
+  box.querySelectorAll('.edit-snap').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      closeMpfDetailModal();
+      openEditMpfSnapModal(btn.dataset.acc, btn.dataset.id);
+    });
+  });
+  box.querySelectorAll('.del-snap').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (!confirm('確定刪除此結餘紀錄？')) return;
+      const a = mpfData.accounts.find(x => x.id === btn.dataset.acc);
+      if (!a) return;
+      a.snapshots = (a.snapshots || []).filter(s => s.id !== btn.dataset.id);
+      const sorted2 = [...(a.snapshots || [])].sort((x, y) => y.month.localeCompare(x.month));
+      if (sorted2.length) a.balance = Number(sorted2[0].balance);
+      saveMpfLocal();
+      queueMpfFullSync();
+      toast('已刪除結餘紀錄', 'ok');
+      renderMpfDetailSnaps(a.id);
+      if (currentPage === 'assets') renderAssets(); else renderMpf();
+    });
+  });
 }
 
 function openAddMpfAccountModal() {
