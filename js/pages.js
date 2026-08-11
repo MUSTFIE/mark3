@@ -98,7 +98,7 @@ function renderMonthly() {
   // 結餘：收入 − 消費支出 − 存錢
   let income = 0, consumption = 0, ccPurchase = 0, repayment = 0, savings = 0;
   getMonthRecords().forEach(r => {
-    if (isTransfer(r) || isCollectReceivable(r) || isInterest(r)) return;
+    if (isTransfer(r) || isCollectReceivable(r) || isInterest(r) || isAdjustment(r)) return;
     if (isSavings(r)) {
       savings += toMOP(r.amount, r.currency);
       return;
@@ -136,7 +136,7 @@ function renderMonthly() {
 function renderMonthBars() {
   const byCat = {};
   getMonthRecords().forEach(r => {
-    if (isRepayment(r) || isCollectReceivable(r) || isInterest(r) || isTransfer(r) || isSavings(r)) return;
+    if (isRepayment(r) || isCollectReceivable(r) || isInterest(r) || isTransfer(r) || isSavings(r) || isAdjustment(r)) return;
     if (isAdvance(r)) {
       const selfAmt = Number(r.selfAmount) || 0;
       if (selfAmt <= 0) return;
@@ -304,7 +304,7 @@ function renderYearly() {
   const monthsExp = Array(12).fill(0);
   const monthsSav = Array(12).fill(0);
   yearRecs.forEach(r => {
-    if (isTransfer(r) || isCollectReceivable(r) || isInterest(r)) return;
+    if (isTransfer(r) || isCollectReceivable(r) || isInterest(r) || isAdjustment(r)) return;
     const m = new Date(r.date).getMonth();
     if (isSavings(r)) {
       const amt = toMOP(r.amount, r.currency);
@@ -327,7 +327,7 @@ function renderYearly() {
 
   const byCat = {};
   yearRecs.forEach(r => {
-    if (isRepayment(r) || isCollectReceivable(r) || isInterest(r) || isTransfer(r) || isSavings(r)) return;
+    if (isRepayment(r) || isCollectReceivable(r) || isInterest(r) || isTransfer(r) || isSavings(r) || isAdjustment(r)) return;
     if (isAdvance(r)) {
       const selfAmt = Number(r.selfAmount) || 0;
       if (selfAmt <= 0) return;
@@ -400,7 +400,7 @@ function renderYearCustomCatSum(byCat) {
   if (!byCat) {
     byCat = {};
     getYearRecords().forEach(r => {
-      if (isRepayment(r) || isCollectReceivable(r) || isInterest(r) || isTransfer(r) || isSavings(r)) return;
+      if (isRepayment(r) || isCollectReceivable(r) || isInterest(r) || isTransfer(r) || isSavings(r) || isAdjustment(r)) return;
       if (isAdvance(r)) {
         const selfAmt = Number(r.selfAmount) || 0;
         if (selfAmt <= 0) return;
