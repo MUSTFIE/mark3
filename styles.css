@@ -974,7 +974,7 @@ body {
 .day-group-stats .sav { color: #d97706; }
 
 /* 年份各月表格 */
-.table-wrap { overflow-x: auto; }
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .month-table {
   width: 100%;
   border-collapse: collapse;
@@ -1258,6 +1258,24 @@ body {
 @media (max-width: 640px) {
   .month-table .month-short { display: inline; }
   .month-table .month-full { display: none; }
+  /* 各月明細：手機橫向滑動、不換行 */
+  #yearly-months-list .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin: 0 -4px;
+    padding-bottom: 4px;
+  }
+  #yearly-months-list .month-table {
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
+  }
+  #yearly-months-list .month-table th,
+  #yearly-months-list .month-table td {
+    white-space: nowrap;
+    padding: 10px 12px;
+    font-size: 0.85rem;
+  }
 }
 
 /* 各月明細總計列 */
@@ -1514,5 +1532,98 @@ body {
   }
   .account-row-amount {
     font-size: 1rem;
+  }
+}
+
+
+/* ===== 彈窗：標題固定，內容區捲動 ===== */
+.modal-sheet-sticky-fix {}
+.modal.modal-sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: 92vh;
+  overflow: hidden;
+  padding: 0;
+}
+.modal.modal-sheet .modal-header {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  background: var(--card, #fff);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 16px;
+}
+.modal.modal-sheet .account-detail-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  min-height: 0;
+  padding: 12px 16px calc(20px + env(safe-area-inset-bottom));
+}
+/* 一般 modal 手機也貼底全寬 */
+@media (max-width: 640px) {
+  .modal-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .modal-overlay .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92vh;
+    margin: 0;
+    border-radius: 16px 16px 0 0;
+  }
+  .modal-overlay .modal:not(.modal-sheet) {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ===== 加至主畫面：全螢幕／standalone ===== */
+html {
+  height: 100%;
+}
+body {
+  min-height: 100%;
+  min-height: 100dvh;
+  /* 瀏海／底部手勢區 */
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+.app {
+  min-height: calc(100dvh - env(safe-area-inset-top));
+  display: flex;
+  flex-direction: column;
+}
+/* standalone 模式下更像原生 App */
+@media all and (display-mode: standalone) {
+  body {
+    background: var(--bg, #f2f2f7);
+    overscroll-behavior: none;
+  }
+  .app {
+    min-height: 100dvh;
+  }
+  header {
+    padding-top: 4px;
+  }
+}
+@supports (-webkit-touch-callout: none) {
+  @media all and (display-mode: standalone) {
+    body {
+      /* iOS 主畫面開啟時避免橡皮筋露出底色 */
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    .app {
+      height: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+    }
   }
 }
