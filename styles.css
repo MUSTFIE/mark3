@@ -1565,14 +1565,18 @@ body {
 @media (max-width: 640px) {
   .modal-overlay {
     align-items: flex-end !important;
-    padding: 0 !important;
+    /* 頂部留白，讓彈窗整體偏下 */
+    padding: max(12px, env(safe-area-inset-top)) 0 0 0 !important;
   }
   .modal-overlay .modal {
     width: 100% !important;
     max-width: 100% !important;
-    max-height: 92vh;
+    max-height: min(80vh, calc(100dvh - 56px - env(safe-area-inset-top)));
     margin: 0;
     border-radius: 16px 16px 0 0;
+  }
+  .modal-overlay .modal.modal-sheet {
+    max-height: min(80vh, calc(100dvh - 56px - env(safe-area-inset-top)));
   }
   .modal-overlay .modal:not(.modal-sheet) {
     overflow-y: auto;
