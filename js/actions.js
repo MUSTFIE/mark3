@@ -181,6 +181,11 @@ function handleRecordSubmit(e) {
     record.category = '利息收入';
   }
   if (category === '利息收入') record.isInterest = true;
+  if (old && isAdjustment(old)) {
+    record.isAdjustment = true;
+    record.category = '戶口調整';
+  }
+  if (category === '戶口調整') record.isAdjustment = true;
 
   if (old) reverseRecordEffect(old);
   applyRecordEffect(record);
@@ -282,9 +287,7 @@ function handleAccountSubmit(e) {
   if (type === '銀行' && acc.interestPeriod === 'daily' && Number(acc.interestRate) > 0) {
     const wasDaily = existing && existing.interestPeriod === 'daily' && Number(existing.interestRate) > 0;
     if (!wasDaily || !acc.lastInterestDate) {
-      const t = new Date();
-      t.setHours(0, 0, 0, 0);
-      acc.lastInterestDate = t.toISOString().slice(0, 10);
+      acc.lastInterestDate = todayLocalStr();
     }
   }
   if (type === '電子錢包' && !acc.linkedBankId) { alert('請選擇扣帳銀行戶口'); return; }
@@ -304,8 +307,10 @@ function handleAccountSubmit(e) {
       id: genId(),
       type: adjAction === 'increase' ? 'income' : 'expense',
       amount: adjAmt, currency: adjCur,
-      date: new Date().toISOString().slice(0, 10),
-      category: '戶口調整', accountId: id,
+      date: todayLocalStr(),
+      category: '戶口調整',
+      isAdjustment: true,
+      accountId: id,
       note: adjNote || (adjAction === 'increase' ? '增加餘額' : '減少餘額'),
       createdAt: new Date().toISOString()
     });
@@ -461,7 +466,7 @@ function renderCustomCatSum() {
   if (!box) return;
   const byCat = {};
   getMonthRecords().forEach(r => {
-    if (isRepayment(r) || isCollectReceivable(r) || isInterest(r) || isTransfer(r) || isSavings(r)) return;
+    if (isRepayment(r) || isCollectReceivable(r) || isInterest(r) || isTransfer(r) || isSavings(r) || isAdjustment(r)) return;
     if (isAdvance(r)) {
       const selfAmt = Number(r.selfAmount) || 0;
       if (selfAmt <= 0) return;
@@ -696,51 +701,90 @@ function handleCollectSubmit(e) {
   switchPage(currentPage);
 }
 
+/**
+ * 日息計入規則（重整版）
+ * ------------------------------------------------------------
+ * 適用：type=銀行、interestPeriod=daily、interestRate>0
+ *
+ * lastInterestDate =「已處理完畢的最後一天」（當日已計過或已確認無息）
+ * 計息從 lastInterestDate 的「隔天」開始，到「今天」為止（含今天）
+ * 首次啟用時 lastInterestDate 設為今天 → 從明天才開始有利息
+ *
+ * 每日每幣別：
+ *   利息 = round(當前餘額 × 年利率/100/365, 2)
+ *   餘額 > 0 且利息 ≥ 0.01 才入帳
+ *   入帳後餘額 += 利息（日複利）
+ *   寫入 isInterest 流水（不計入月結餘收入）
+ *
+ * 日期一律用本地曆（formatDateLocal），禁止 toISOString 截日期
+ * 已刪除的利息 id 在 skippedInterestIds，不再自動補回
+ * ------------------------------------------------------------
+ */
 function accrueDailyInterest() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = today.toISOString().slice(0, 10);
+  const todayStr = todayLocalStr();
   let changed = false;
 
   accounts.forEach(acc => {
-    if (acc.type !== '銀行' || !(Number(acc.interestRate) > 0) || acc.interestPeriod !== 'daily') return;
+    if (acc.type !== '銀行') return;
+    if (acc.interestPeriod !== 'daily') return;
+    const ratePct = Number(acc.interestRate) || 0;
+    if (!(ratePct > 0)) return;
 
-    // lastInterestDate = 已計至哪一天；從隔天起算。無則設為今天（明天才開始入帳）
+    const dailyRate = ratePct / 100 / 365;
+    if (!(dailyRate > 0)) return;
+
+    // 尚無基準日：設為今天，今天不計息
     let last = acc.lastInterestDate || '';
-    if (!last) {
-      last = todayStr;
-      acc.lastInterestDate = last;
-      changed = true;
-    }
-
-    const cursor = new Date(last + 'T00:00:00');
-    cursor.setDate(cursor.getDate() + 1); // 從「隔天」開始
-
-    const dailyRate = (Number(acc.interestRate) / 100) / 365;
-    if (!(dailyRate > 0)) {
+    if (!last || !parseDateLocal(last)) {
       acc.lastInterestDate = todayStr;
       changed = true;
       return;
     }
 
+    // 不可早於系統底線（若有）
+    if (typeof INTEREST_FLOOR === 'string' && INTEREST_FLOOR && last < INTEREST_FLOOR) {
+      last = INTEREST_FLOOR;
+    }
+
+    const lastDt = parseDateLocal(last);
+    const todayDt = parseDateLocal(todayStr);
+    if (!lastDt || !todayDt) return;
+
+    // 從隔天開始
+    const cursor = new Date(lastDt.getTime());
+    cursor.setDate(cursor.getDate() + 1);
+
+    if (cursor.getTime() > todayDt.getTime()) {
+      // 已計到今天或未來，無需再跑
+      return;
+    }
+
+    if (!acc.balances) acc.balances = { MOP: 0, HKD: 0, CNY: 0 };
     const skipped = new Set(acc.skippedInterestIds || []);
 
-    while (cursor.getTime() <= today.getTime()) {
-      const dateStr = cursor.toISOString().slice(0, 10);
+    while (cursor.getTime() <= todayDt.getTime()) {
+      const dateStr = formatDateLocal(cursor);
 
-      // 以「計息當日開始前的餘額」計息，再把利息加回（日複利）
+      // 若設了底線，底線當天之前不計
+      if (typeof INTEREST_FLOOR === 'string' && INTEREST_FLOOR && dateStr < INTEREST_FLOOR) {
+        acc.lastInterestDate = dateStr;
+        changed = true;
+        cursor.setDate(cursor.getDate() + 1);
+        continue;
+      }
+
       ['MOP', 'HKD', 'CNY'].forEach(cur => {
         const recId = `${acc.id}_${dateStr}_${cur}`;
-        if (skipped.has(recId)) return; // 使用者已刪除，不再自動補回
-        const exists = records.some(r => r.id === recId);
-        if (exists) return;
+        if (skipped.has(recId)) return;
+        // 已有該日該幣流水 → 不再重複加餘額
+        if (records.some(r => r.id === recId)) return;
 
-        const bal = Number(acc.balances?.[cur]) || 0;
+        const bal = Number(acc.balances[cur]) || 0;
         if (bal <= 0) return;
+
         const interest = Math.round(bal * dailyRate * 100) / 100;
         if (interest < 0.01) return;
 
-        if (!acc.balances) acc.balances = { MOP: 0, HKD: 0, CNY: 0 };
         acc.balances[cur] = Math.round((bal + interest) * 100) / 100;
 
         records.push({
@@ -752,12 +796,13 @@ function accrueDailyInterest() {
           date: dateStr,
           category: '利息收入',
           accountId: acc.id,
-          note: `日息 ${acc.interestRate}%（餘額 ${formatMoney(bal)}）`,
+          note: `日息 ${ratePct}%（計息餘額 ${formatMoney(bal)}）`,
           createdAt: new Date().toISOString()
         });
         changed = true;
       });
 
+      // 無論當日是否實際產生利息，都標記已處理
       acc.lastInterestDate = dateStr;
       changed = true;
       cursor.setDate(cursor.getDate() + 1);
