@@ -345,7 +345,7 @@ let currentType = 'expense';
 let currentPage = 'monthly';
 let filters = { type: '', category: '', account: '', currency: '' };
 let expandedAccountId = null;
-let expandedAccountTypes = null; // null = 全部展開
+let expandedAccountTypes = new Set(); // 空 = 各類型預設收合
 let sectionCollapseState = { dist: false, accounts: false, mpf: false, liabilities: false };
 let ledgerFilterMonth = ''; // '' = 全部, 'YYYY-MM'
 let expandedMpfId = null;
