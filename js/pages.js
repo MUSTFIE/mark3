@@ -525,15 +525,8 @@ function renderAccounts() {
     group.forEach(a => {
       const b = a.balances || { MOP: 0, HKD: 0, CNY: 0 };
       const isWallet = a.type === '電子錢包';
-      const linked = isWallet && a.linkedBankId ? accounts.find(x => x.id === a.linkedBankId) : null;
       const totalMop = balancesToMOP(b);
-      const rateInfo = (a.type === '銀行' && a.interestRate > 0)
-        ? `${a.interestRate}%${a.interestPeriod === 'daily' ? '日息' : a.interestPeriod === 'monthly' ? '月息' : '年息'}`
-        : '';
-      const sub = isWallet
-        ? (linked ? `扣帳：${escapeHtml(linked.name)}` : '未綁定銀行')
-        : (rateInfo || (a.note ? escapeHtml(a.note) : ''));
-      // 列表只顯示名稱 + 金額（左對齊），點擊開詳情彈窗
+      // 只顯示名稱 + 折合 MOP
       const item = document.createElement('div');
       item.className = 'account-item account-row';
       item.dataset.id = a.id;
@@ -541,9 +534,7 @@ function renderAccounts() {
       item.tabIndex = 0;
       item.innerHTML = `
         <div class="account-row-main">
-          <div class="account-name">${ACCOUNT_TYPE_ICONS[a.type] || ''} ${escapeHtml(a.name)}</div>
-          ${sub ? `<div class="account-meta">${sub}</div>` : ''}
-          ${!isWallet ? `<div class="account-row-chips">${currencyChipsHtml(b)}</div>` : ''}
+          <div class="account-name">${escapeHtml(a.name)}</div>
         </div>
         <div class="account-row-right">
           <div class="account-row-amount">${isWallet ? '—' : money('MOP', totalMop)}</div>
