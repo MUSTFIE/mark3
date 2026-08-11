@@ -68,7 +68,7 @@ async function clearAllData() {
   rates = { ...DEFAULT_RATES };
   filters = { type: '', category: '', account: '', currency: '' };
   expandedAccountId = null;
-  expandedAccountTypes = null;
+  expandedAccountTypes = new Set();
   expandedMpfId = null;
   expandedAssetGroup = null;
   sectionCollapseState = { dist: false, accounts: false, mpf: false, liabilities: false };
