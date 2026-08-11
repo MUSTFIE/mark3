@@ -511,7 +511,7 @@ function renderAccounts() {
   TYPE_ORDER.forEach(type => {
     const group = accounts.filter(a => a.type === type);
     if (!group.length) return;
-    const typeOpen = expandedAccountTypes === null || expandedAccountTypes.has(type);
+    const typeOpen = expandedAccountTypes.has(type);
     const section = document.createElement('div');
     section.className = 'type-group' + (typeOpen ? ' expanded' : '');
     const groupTotal = group.reduce((s, a) => s + balancesToMOP(a.balances), 0);
@@ -549,9 +549,6 @@ function renderAccounts() {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const t = btn.dataset.type;
-      if (expandedAccountTypes === null) {
-        expandedAccountTypes = new Set(TYPE_ORDER);
-      }
       if (expandedAccountTypes.has(t)) expandedAccountTypes.delete(t);
       else expandedAccountTypes.add(t);
       renderAccounts();
