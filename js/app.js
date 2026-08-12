@@ -2,6 +2,13 @@
  * app.js — 啟動與事件綁定（最後載入）
  */
 function init() {
+  // iOS 加至主畫面：補上 standalone class（部分版本不支援 display-mode 媒體查詢）
+  try {
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+      || window.navigator.standalone === true;
+    if (standalone) document.body.classList.add('is-standalone');
+  } catch (_) {}
+
   if ($('#date')) $('#date').valueAsDate = new Date();
   initFirebase();
   updateAuthButton();
