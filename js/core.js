@@ -113,7 +113,7 @@ function flushPendingOpsToUpdates(updates, opsMap, cloudPath, fullDirty, fullLis
   });
 }
 const PREFS_KEY = 'accounting_prefs_v1';
-const SYNC_DEBOUNCE_MS = 400;
+const SYNC_DEBOUNCE_MS = 600;
 
 function genId() {
   try {
@@ -217,9 +217,12 @@ function money(currency, n) {
 }
 function escapeHtml(str) {
   if (!str) return '';
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 function scopedKey(key) {
   // 已登入：本機快取依 uid 分開；未登入：使用訪客鍵
@@ -279,6 +282,11 @@ function toMOP(amount, currency) {
 function balancesToMOP(b) {
   if (!b) return 0;
   return toMOP(b.MOP || 0, 'MOP') + toMOP(b.HKD || 0, 'HKD') + toMOP(b.CNY || 0, 'CNY');
+}
+/** 以 id 找戶口（線性；資料量小足夠） */
+function findAccountById(id) {
+  if (id == null || id === '') return null;
+  return accounts.find(a => a.id === id) || null;
 }
 function isRepayment(r) {
   return r.category === '信用卡還款' || !!r.repayToId;
@@ -699,3 +707,4 @@ async function handleAuthClick() {
     }
   }
 }
+
