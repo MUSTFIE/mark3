@@ -49,11 +49,23 @@ function changeMonth(delta) {
   else if (currentPage === 'analysis') renderAnalysisMonth();
 }
 
+let _monthRecCache = { key: '', list: null };
+function invalidateMonthRecCache() { _monthRecCache = { key: '', list: null }; }
 function getMonthRecords() {
-  return records.filter(r => {
-    const d = new Date(r.date);
-    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
-  }).sort((a, b) => new Date(b.date) - new Date(a.date) || String(b.id).localeCompare(String(a.id)));
+  const key = currentYear + '-' + currentMonth + '-' + records.length + '-' + (records[records.length - 1]?.id || '');
+  if (_monthRecCache.key === key && _monthRecCache.list) return _monthRecCache.list;
+  const list = records.filter(r => {
+    const d = String(r.date || '');
+    if (d.length >= 7) {
+      const y = Number(d.slice(0, 4));
+      const m = Number(d.slice(5, 7)) - 1;
+      if (!Number.isNaN(y) && !Number.isNaN(m)) return y === currentYear && m === currentMonth;
+    }
+    const dt = new Date(r.date);
+    return dt.getFullYear() === currentYear && dt.getMonth() === currentMonth;
+  }).sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(b.id).localeCompare(String(a.id)));
+  _monthRecCache = { key, list };
+  return list;
 }
 
 function getFilteredMonthRecords() {
@@ -251,7 +263,7 @@ function renderMonthRecords() {
     const dayRecs = byDate[date];
     let dayIncome = 0, dayExpense = 0, daySavings = 0;
     dayRecs.forEach(r => {
-      if (isTransfer(r) || isCollectReceivable(r) || isInterest(r)) return;
+      if (isTransfer(r) || isCollectReceivable(r) || isInterest(r) || isAdjustment(r)) return;
       if (isSavings(r)) { daySavings += toMOP(r.amount, r.currency); return; }
       if (isAdvance(r)) {
         const selfAmt = toMOP(r.selfAmount != null ? r.selfAmount : 0, r.currency);
@@ -748,11 +760,11 @@ function onCategoryChange() {
 }
 
 function applyBalanceDelta(accountId, currency, delta) {
+  // 只改記憶體；呼叫端負責 saveAccountsLocal / 同步（避免連續寫 localStorage）
   const acc = accounts.find(a => a.id === accountId);
   if (!acc || acc.type === '電子錢包') return;
   if (!acc.balances) acc.balances = { MOP: 0, HKD: 0, CNY: 0 };
   acc.balances[currency] = Number(acc.balances[currency] || 0) + delta;
-  saveJSON(ACCOUNTS_KEY, accounts);
 }
 
 function resolveEffectAccount(rec) {
