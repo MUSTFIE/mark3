@@ -193,6 +193,7 @@ function handleRecordSubmit(e) {
   if (idx >= 0) records[idx] = record; else records.push(record);
   // 清理本機既有紀錄中的 undefined 欄位
   records = stripUndefined(records);
+  if (typeof invalidateMonthRecCache === 'function') invalidateMonthRecCache();
   saveRecordsLocal();
   queueRecordUpsert(record);
   saveAccountsLocal();
@@ -207,6 +208,8 @@ function handleRecordSubmit(e) {
 }
 
 function deleteRecord(id) {
+  if (typeof invalidateMonthRecCache === 'function') invalidateMonthRecCache();
+
   const rec = records.find(r => r.id === id);
   if (rec) {
     reverseRecordEffect(rec);
@@ -219,6 +222,7 @@ function deleteRecord(id) {
     }
   }
   records = records.filter(r => r.id !== id);
+  if (typeof invalidateMonthRecCache === 'function') invalidateMonthRecCache();
   saveRecordsLocal();
   queueRecordRemove(id);
   saveAccountsLocal();
@@ -359,6 +363,7 @@ function handleRepaySubmit(e) {
   };
   applyRecordEffect(record);
   records.push(record);
+  if (typeof invalidateMonthRecCache === 'function') invalidateMonthRecCache();
   saveRecordsLocal();
   queueRecordUpsert(record);
   saveAccountsLocal();
@@ -441,6 +446,7 @@ function handleTransferSubmit(e) {
   applyRecordEffect(record);
   const idx = records.findIndex(r => r.id === record.id);
   if (idx >= 0) records[idx] = record; else records.push(record);
+  if (typeof invalidateMonthRecCache === 'function') invalidateMonthRecCache();
   saveRecordsLocal();
   queueRecordUpsert(record);
   saveAccountsLocal();
@@ -723,6 +729,8 @@ function handleCollectSubmit(e) {
 function accrueDailyInterest() {
   const todayStr = todayLocalStr();
   let changed = false;
+  // 全表 id 索引一次建立
+  const idSet = new Set(records.map(r => r.id));
 
   accounts.forEach(acc => {
     if (acc.type !== '銀行') return;
@@ -761,7 +769,7 @@ function accrueDailyInterest() {
 
     if (!acc.balances) acc.balances = { MOP: 0, HKD: 0, CNY: 0 };
     const skipped = new Set(acc.skippedInterestIds || []);
-
+    // 一次建立 id 索引，避免每日每幣別都掃全 records
     while (cursor.getTime() <= todayDt.getTime()) {
       const dateStr = formatDateLocal(cursor);
 
@@ -777,7 +785,7 @@ function accrueDailyInterest() {
         const recId = `${acc.id}_${dateStr}_${cur}`;
         if (skipped.has(recId)) return;
         // 已有該日該幣流水 → 不再重複加餘額
-        if (records.some(r => r.id === recId)) return;
+        if (idSet.has(recId)) return;
 
         const bal = Number(acc.balances[cur]) || 0;
         if (bal <= 0) return;
@@ -799,6 +807,7 @@ function accrueDailyInterest() {
           note: `日息 ${ratePct}%（計息餘額 ${formatMoney(bal)}）`,
           createdAt: new Date().toISOString()
         });
+        idSet.add(recId);
         changed = true;
       });
 
@@ -816,6 +825,7 @@ function accrueDailyInterest() {
       seen.add(r.id);
       return true;
     });
+    if (typeof invalidateMonthRecCache === 'function') invalidateMonthRecCache();
     saveRecordsLocal();
     queueRecordsFullSync();
     saveAccountsLocal();
@@ -849,13 +859,13 @@ function startInterestAutoAccrue() {
 
   scheduleMidnight();
 
-  // 備用：每 30 分鐘檢查（避免定時器被瀏覽器節流漏掉）
+  // 備用：每天檢查一次（主觸發仍為每日 00:01 與開啟／回到 App）
   clearInterval(startInterestAutoAccrue._timer);
   startInterestAutoAccrue._timer = setInterval(() => {
     if (accrueDailyInterest()) {
       if (currentPage === 'monthly' || currentPage === 'assets') switchPage(currentPage);
     }
-  }, 30 * 60 * 1000);
+  }, 24 * 60 * 60 * 1000);
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
@@ -1357,4 +1367,3 @@ function handleMpfChangeSubmit(e) {
   toast('已儲存結餘', 'ok');
   if (currentPage === 'assets') renderAssets(); else renderMpf();
 }
-
