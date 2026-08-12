@@ -22,7 +22,18 @@ body {
 .app {
   max-width: 960px;
   margin: 0 auto;
-  padding: 12px 16px calc(var(--nav-h) + 16px + env(safe-area-inset-bottom));
+  padding-top: 12px;
+  padding-right: 16px;
+  /* 底部一律避開 Home Indicator（Safari 與 standalone 皆適用） */
+  padding-bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom, 0px));
+  padding-left: 16px;
+}
+
+/* iOS standalone / 加至主畫面：頂部額外避開瀏海／Dynamic Island */
+@media all and (display-mode: standalone) {
+  .app {
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  }
 }
 .page { display: none; }
 .page.active { display: block; }
