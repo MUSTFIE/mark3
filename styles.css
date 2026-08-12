@@ -1585,15 +1585,13 @@ body {
 }
 
 /* ===== 加至主畫面：全螢幕／standalone ===== */
-/* 重點：安全區 padding 放在「不捲動」的 body，避免 iOS 上頂部按鈕被狀態列挡住 */
+/* 僅保留上方狀態列安全區；下／左／右不留白 */
 html {
   height: 100%;
 }
 body {
   min-height: 100%;
   min-height: 100dvh;
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
 }
 .app {
   min-height: 100dvh;
@@ -1614,11 +1612,10 @@ body {
     overscroll-behavior: none;
     display: flex;
     flex-direction: column;
-    /* 狀態列下方固定留白（不隨內容捲動） */
     padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
-    padding-bottom: 0;
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
     box-sizing: border-box;
   }
   .app {
@@ -1629,25 +1626,35 @@ body {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     box-sizing: border-box;
-    /* 頂部不再加 safe-area，避免雙重空白；底部手勢區仍保留 */
     padding-top: 8px;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+    /* 底部導航仍佔位，但不額外加 safe-area 空白 */
+    padding-bottom: var(--nav-h) !important;
   }
-  /* 資產頁多顆按鈕：頂部 header 黏在安全區下方 */
   header {
     position: sticky;
     top: 0;
     z-index: 30;
     background: var(--bg, #f2f2f7);
-    padding-top: 6px;
-    padding-bottom: 8px;
+    padding: 6px 12px 8px;
     margin-bottom: 8px;
+  }
+  .page {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .bottom-nav {
+    height: var(--nav-h) !important;
+    padding-bottom: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 }
 
-/* iOS Safari 加至主畫面有時不報 display-mode，用 navigator standalone 類名補強（見 app.js） */
 body.is-standalone {
-  /* 與上方 standalone 規則一致，由 JS 加上 class */
+  /* 與 display-mode:standalone 相同，見下方 */
 }
 @supports (-webkit-touch-callout: none) {
   body.is-standalone {
@@ -1660,9 +1667,9 @@ body.is-standalone {
     flex-direction: column;
     background: var(--bg, #f2f2f7);
     padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
-    padding-bottom: 0;
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
     box-sizing: border-box;
   }
   body.is-standalone .app {
@@ -1672,14 +1679,25 @@ body.is-standalone {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     padding-top: 8px;
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: var(--nav-h) !important;
   }
   body.is-standalone header {
     position: sticky;
     top: 0;
     z-index: 30;
     background: var(--bg, #f2f2f7);
-    padding-top: 6px;
-    padding-bottom: 8px;
+    padding: 6px 12px 8px;
+  }
+  body.is-standalone .page {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  body.is-standalone .bottom-nav {
+    height: var(--nav-h) !important;
+    padding-bottom: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
   }
 }
